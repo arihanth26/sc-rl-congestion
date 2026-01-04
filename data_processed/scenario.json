@@ -1,0 +1,21 @@
+{
+  "dataset_path": "data_processed/demand_yellow_top30.parquet",
+  "bucket_minutes": 5,
+  "zone_other_id": -1,
+
+  "fcs": [
+    { "id": "FC1", "capacity_per_bucket": 220 },
+    { "id": "FC2", "capacity_per_bucket": 180 },
+    { "id": "FC3", "capacity_per_bucket": 160 }
+  ],
+
+  "shipping_cost_per_order": [1.0, 1.1, 1.2],
+  "late_penalty_per_order": 6.0,
+  "overflow_penalty_per_order": 12.0,
+  "queue_variance_penalty": 0.02,
+
+  "policy_threshold_rho": 1.2,
+  "run_time_min": "2024-01-01 00:00:00",
+  "run_time_max": "2024-01-08 00:00:00"
+}
+

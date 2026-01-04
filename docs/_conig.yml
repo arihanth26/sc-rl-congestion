@@ -1,0 +1,3 @@
+theme: jekyll-theme-cayman
+title: RL Congestion-Aware Fulfillment Routing
+description: Reinforcement learning for stability and cost control in fulfillment networks under real demand.
