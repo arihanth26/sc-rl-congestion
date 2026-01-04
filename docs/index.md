@@ -1,8 +1,7 @@
 ---
 layout: default
+title: Reinforcement Learning for Congestion-Aware Fulfillment Routing
 ---
-
-# Reinforcement Learning for Congestion-Aware Fulfillment Routing
 
 > A reinforcement learning approach to dynamic load balancing and congestion control in fulfillment networks under real, bursty demand.
 
