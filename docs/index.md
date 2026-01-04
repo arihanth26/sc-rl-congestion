@@ -1,3 +1,15 @@
+---
+layout: default
+---
+
+<script>
+  window.MathJax = {
+    tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$']]},
+    options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+
 # Reinforcement Learning for Congestion-Aware Fulfillment Routing
 
 > A reinforcement learning approach to dynamic load balancing and congestion control in fulfillment networks under real, bursty demand.
@@ -84,15 +96,15 @@ Backlog represents delayed or late orders and captures congestion effects.
 ### 3.1 System Dynamics
 
 Let:
-- \( q_i(t) \) be the queue length at fulfillment center \( i \) at time \( t \)
-- \( a_i(t) \) be arrivals routed to center \( i \)
-- \( c_i \) be the processing capacity of center \( i \)
+- $q_i(t)$ be the queue length at fulfillment center $i$ at time $t$
+- $a_i(t)$ be arrivals routed to center $i$
+- $c_i$ be the processing capacity of center $i$
 
 Queue evolution follows:
 
-\[
+$$
 q_i(t+1) = \max \left( q_i(t) + a_i(t) - c_i,\ 0 \right)
-\]
+$$
 
 This introduces temporal coupling, meaning poor routing decisions can harm system performance over many future steps.
 
@@ -110,14 +122,14 @@ These baselines serve as control policies against which learning-based approache
 
 Each demand zone routes all incoming orders to the fulfillment center with the lowest per-order shipping cost.
 
-\[
+$$
 \pi(z) = \arg\min_i \; \text{cost}_{z,i}
-\]
+$$
 
 Where:
-- \( z \) denotes a demand zone
-- \( i \) indexes fulfillment centers
-- \( \text{cost}_{z,i} \) represents the marginal shipping or processing cost
+- $z$ denotes a demand zone
+- $i$ indexes fulfillment centers
+- $\text{cost}_{z,i}$ represents the marginal shipping or processing cost
 
 This policy is locally optimal at each decision step but ignores system state, queue length, and future consequences.
 
@@ -133,11 +145,17 @@ The myopic policy consistently exhibits catastrophic failures under peak demand,
 - Queue trajectories under myopic routing  
   ![](assets/queues_myopic_cheapest.png)
 
+  **How to read this:** queues rise sharply in specific fulfillment centers and remain elevated during peak demand windows. This indicates the policy repeatedly routes into already congested centers.
+
 - Step cost over time under myopic routing  
   ![](assets/cost_myopic_cheapest.png)
 
+  **How to read this:** cost spikes are concentrated around high-demand intervals. These spikes reflect compounding penalties from backlog and late orders, not just marginal shipping cost.
+
 - Late backlog over time under myopic routing  
   ![](assets/late_myopic_cheapest.png)
+
+  **How to read this:** backlog grows quickly and clears slowly. This is congestion persistence, where poor routing decisions create delayed effects that carry forward.
 
 ---
 
@@ -145,13 +163,13 @@ The myopic policy consistently exhibits catastrophic failures under peak demand,
 
 Incoming demand is split across fulfillment centers in proportion to their processing capacities, independent of real-time congestion.
 
-\[
+$$
 a_i(t) = D(t) \cdot \frac{c_i}{\sum_j c_j}
-\]
+$$
 
 Where:
-- \( D(t) \) is total system demand at time \( t \)
-- \( c_i \) is the processing capacity of fulfillment center \( i \)
+- $D(t)$ is total system demand at time $t$
+- $c_i$ is the processing capacity of fulfillment center $i$
 
 This policy enforces long-run load balance but does not adapt to short-term fluctuations.
 
@@ -167,11 +185,17 @@ Static splitting trades responsiveness for stability and performs well only when
 - Queue trajectories under static split routing  
   ![](assets/queues_static_split.png)
 
+  **How to read this:** queues remain comparatively bounded and balanced across centers. This indicates load is distributed in a stable manner rather than concentrating in one place.
+
 - Step cost over time under static split routing  
   ![](assets/cost_static_split.png)
 
+  **How to read this:** cost is smoother with fewer extreme spikes. Residual peaks usually occur when total demand exceeds the combined ability of the system to process within the bucket cadence.
+
 - Late backlog over time under static split routing  
   ![](assets/late_static_split.png)
+
+  **How to read this:** late backlog still appears during spikes, but it is smaller and clears faster than under myopic routing.
 
 ---
 
@@ -179,14 +203,14 @@ Static splitting trades responsiveness for stability and performs well only when
 
 This heuristic augments cheapest-first routing by avoiding fulfillment centers whose congestion exceeds a predefined threshold.
 
-\[
+$$
 \text{Avoid } i \text{ if } \frac{q_i(t)}{c_i} > \rho_{\text{threshold}}
-\]
+$$
 
 Where:
-- \( q_i(t) \) is the queue length at fulfillment center \( i \)
-- \( c_i \) is its processing capacity
-- \( \rho_{\text{threshold}} \) is a congestion tolerance parameter
+- $q_i(t)$ is the queue length at fulfillment center $i$
+- $c_i$ is its processing capacity
+- $\rho_{\text{threshold}}$ is a congestion tolerance parameter
 
 Demand is routed to the next cheapest feasible fulfillment center when thresholds are violated.
 
@@ -203,11 +227,17 @@ While threshold-based routing introduces feedback, it remains a brittle rule-bas
 - Queue trajectories under threshold-based routing  
   ![](assets/queues_threshold_congestion.png)
 
+  **How to read this:** queues are constrained relative to myopic routing, but you may see switching effects where load shifts quickly between centers as thresholds are crossed.
+
 - Step cost over time under threshold-based routing  
   ![](assets/cost_threshold_congestion.png)
 
+  **How to read this:** cost spikes are reduced versus myopic routing, but not eliminated. The remaining peaks show the limits of simple threshold logic under bursty demand.
+
 - Late backlog over time under threshold-based routing  
   ![](assets/late_threshold_congestion.png)
+
+  **How to read this:** backlog peaks are smaller and recovery is faster, but performance depends heavily on the chosen threshold parameter.
 
 ---
 
