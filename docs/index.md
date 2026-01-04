@@ -2,14 +2,6 @@
 layout: default
 ---
 
-<script>
-  window.MathJax = {
-    tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$']]},
-    options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
-  };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
-
 # Reinforcement Learning for Congestion-Aware Fulfillment Routing
 
 > A reinforcement learning approach to dynamic load balancing and congestion control in fulfillment networks under real, bursty demand.
