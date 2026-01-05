@@ -1,5 +1,5 @@
 theme: jekyll-theme-cayman
 
-title: RL Congestion-Aware Fulfillment Routing
-description: Reinforcement learning for stability and cost control in fulfillment networks under real demand.
+title: World-Model-Driven Reinforcement Learning AI Agents for Stable Fulfillment Routing
+description: World-model-driven AI agents for stable and cost-efficient fulfillment routing under real, bursty demand.
 
