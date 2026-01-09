@@ -3,6 +3,20 @@ layout: default
 title: World-Model-Driven Reinforcement Learning AI Agents for Stable Fulfillment Routing
 ---
 
+<!-- MathJax (required for LaTeX equations on GitHub Pages) -->
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']]
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
 > World-model-driven AI agents for stable and cost-efficient fulfillment routing under real, bursty demand.
 
 ---
@@ -266,7 +280,254 @@ Reinforcement learning allows the agent to anticipate demand spikes, balance que
 
 ---
 
-## 7. Future Work
+## 7. Reinforcement Learning Formulation
+
+This section defines the exact Markov Decision Process (MDP) used by the agent, including the state, action space, cost function, and the corresponding reward signal used for learning.
+
+### 7.1 State (Observation)
+
+At each time step $t$, the agent receives a continuous observation vector:
+
+$$
+s_t = [q_1(t), q_2(t), q_3(t), u_1(t), u_2(t), u_3(t), D(t), \bar{D}(t)]
+$$
+
+Where:
+- $q_i(t)$ is the backlog (queue length) at fulfillment center $i$ after processing at time $t$
+- $u_i(t)$ is a utilization proxy defined as $u_i(t) = \frac{q_i(t)}{\max(c_i, 1)}$
+- $D(t)$ is total system demand arriving in time bucket $t$
+- $\bar{D}(t)$ is a rolling mean of recent demand over a fixed window (for short-term demand context)
+
+This state captures both instantaneous congestion and short-term demand pressure.
+
+### 7.2 Action Space
+
+The current environment uses a discrete action space:
+
+$$
+a_t \in \{0, 1, 2\}
+$$
+
+Mapped to three routing rules:
+- $a_t = 0$: route all demand using cheapest-first routing
+- $a_t = 1$: split demand proportionally to fulfillment center capacities
+- $a_t = 2$: threshold-based stress-aware routing (avoid stressed centers, then choose cheapest)
+
+This discrete structure is intentional. It enables stable deep RL baselines (DQN variants) and creates an interpretable control layer. The agent is learning when each routing regime is appropriate as demand conditions change.
+
+### 7.3 Per-Step Cost Function (What the simulator optimizes)
+
+At time step $t$, routing produces a vector of routed demand:
+
+$$
+r_t = [r_1(t), r_2(t), r_3(t)]
+$$
+
+Where $r_i(t) \ge 0$ and $\sum_i r_i(t) = D(t)$.
+
+The simulator computes total per-step cost as:
+
+$$
+C_t = C^{\text{ship}}_t + C^{\text{late}}_t + C^{\text{overflow}}_t + C^{\text{balance}}_t
+$$
+
+Each term corresponds directly to operational realities in fulfillment networks.
+
+#### (1) Shipping / Processing Cost
+
+$$
+C^{\text{ship}}_t = \sum_i r_i(t)\cdot s_i
+$$
+
+Where:
+- $s_i$ is the per-order cost associated with fulfillment center $i$ (shipping or processing cost)
+
+This encourages routing toward cheaper centers, but only when the system can handle the load.
+
+#### (2) Late Backlog Penalty (Congestion Persistence)
+
+Let backlog after processing be $q_i(t)$ and define total backlog:
+
+$$
+L(t) = \sum_i q_i(t)
+$$
+
+Then:
+
+$$
+C^{\text{late}}_t = \lambda_{\text{late}} \cdot L(t)
+$$
+
+Where:
+- $\lambda_{\text{late}}$ is the per-order late penalty
+
+This term is what creates long-horizon behavior. If the agent triggers backlog, it continues paying until the system recovers.
+
+#### (3) Overflow Penalty (Severe Overload)
+
+Define a stress ratio:
+
+$$
+\rho_i(t) = \frac{q_i(t)}{\max(c_i, \epsilon)}
+$$
+
+Overflow activates only when stress exceeds a hard limit (a “meltdown” regime). In the simulator, overflow begins when $\rho_i(t) > 2$:
+
+$$
+C^{\text{overflow}}_t = \lambda_{\text{overflow}}\cdot \sum_i \max(\rho_i(t) - 2,\ 0)
+$$
+
+Where:
+- $\lambda_{\text{overflow}}$ controls how harshly extreme overload is punished
+- $\epsilon$ is a small constant to avoid division by zero
+
+This term prevents the learned policy from sacrificing stability to chase cheap shipping.
+
+#### (4) Balance / Stability Penalty (Queue Imbalance)
+
+To discourage routing that causes one center to accumulate disproportionate backlog, the simulator adds a variance penalty:
+
+$$
+C^{\text{balance}}_t = \lambda_{\text{var}} \cdot \text{Var}\left(q(t)\right)
+$$
+
+Where:
+- $q(t) = [q_1(t), q_2(t), q_3(t)]$
+- $\lambda_{\text{var}}$ scales the penalty
+
+This is a stability regularizer. It encourages smoother load distribution without enforcing a rigid split.
+
+### 7.4 Reward Function (What the RL agent learns from)
+
+The RL reward is defined as negative cost:
+
+$$
+R_t = -C_t
+$$
+
+The training objective is to maximize expected discounted return:
+
+$$
+J(\pi) = \mathbb{E}_\pi\left[\sum_{t=0}^{T-1}\gamma^t R_t\right]
+= -\mathbb{E}_\pi\left[\sum_{t=0}^{T-1}\gamma^t C_t\right]
+$$
+
+Where:
+- $\pi$ is the policy
+- $\gamma \in (0,1]$ is the discount factor
+- $T$ is the episode length (number of time buckets)
+
+Interpretation:
+- maximizing $J(\pi)$ means minimizing long-run operational cost
+- the agent is trained to make routing choices that reduce future congestion, not just immediate shipping cost
+
+---
+
+## 8. Reinforcement Learning Algorithms to be Implemented
+
+This project targets both model-free deep reinforcement learning and world-model-driven decision-making. The implementations focus on stable, interpretable baselines first, then expand into model-based planning using learned dynamics.
+
+### 8.1 Model-Free Deep RL (DQN Family)
+
+The environment has:
+- a discrete action space
+- continuous state features
+- dense per-step rewards
+
+This is a strong fit for DQN-style algorithms.
+
+The following algorithms are to be implemented:
+
+#### Deep Q-Network (DQN)
+Learn an action-value function $Q_\theta(s,a)$ with a neural network and act via:
+
+$$
+a_t = \arg\max_a Q_\theta(s_t, a)
+$$
+
+Training uses:
+- experience replay
+- target network stabilization
+- $\epsilon$-greedy exploration
+
+#### Double DQN
+Reduces Q-value overestimation by decoupling action selection and evaluation in the target:
+
+$$
+y_t = R_t + \gamma Q_{\theta^-}\left(s_{t+1}, \arg\max_a Q_\theta(s_{t+1}, a)\right)
+$$
+
+Where:
+- $\theta$ are online network parameters
+- $\theta^-$ are target network parameters
+
+#### Dueling DQN
+Decomposes $Q(s,a)$ into state value and action advantage:
+
+$$
+Q(s,a) = V(s) + \left(A(s,a) - \frac{1}{|\mathcal{A}|}\sum_{a'}A(s,a')\right)
+$$
+
+This is useful when state quality matters strongly, and actions are few and structured (as in this routing setup).
+
+#### Prioritized Experience Replay (optional enhancement)
+Samples transitions with higher TD-error more often to improve learning efficiency in rare-but-critical demand spikes.
+
+### 8.2 World-Model-Driven Planning (Model Predictive Control)
+
+A learned world model $\hat{f}$ approximates environment dynamics:
+
+$$
+\hat{s}_{t+1},\ \hat{C}_t = \hat{f}_\phi(s_t, a_t)
+$$
+
+Planning uses the model to simulate candidate action sequences over a horizon $H$ and chooses the action that minimizes predicted cost:
+
+$$
+a_t^* = \arg\min_{a_t,\dots,a_{t+H-1}}
+\sum_{k=0}^{H-1}\gamma^k \hat{C}_{t+k}
+$$
+
+This is model-predictive control (MPC) in a learned simulator:
+- it adds foresight under bursty demand
+- it explicitly plans to avoid future congestion, not only react to it
+
+### 8.3 Hybrid Model-Based Reinforcement Learning (Dyna-Style)
+
+The learned world model can generate imagined rollouts:
+
+$$
+(s_t, a_t, \hat{R}_t, \hat{s}_{t+1})
+$$
+
+These synthetic transitions are mixed into the replay buffer alongside real experience. This approach:
+- improves sample efficiency
+- amplifies rare demand spike situations without requiring repeated real rollouts
+- increases robustness to demand shocks
+
+---
+
+## 9. World Model (Learned Dynamics)
+
+The project includes a learned predictive model trained from rollout data to approximate short-horizon fulfillment dynamics and cost.
+
+The world model learns a mapping:
+
+$$
+(s_t, a_t) \rightarrow (\hat{C}_t,\ \hat{q}(t+1))
+$$
+
+Where:
+- $\hat{C}_t$ is predicted step cost
+- $\hat{q}(t+1)$ is predicted next backlog state (queues)
+
+This model is used in two ways:
+- as a forward simulator for planning (MPC)
+- as a generator of imagined experience (hybrid model-based RL)
+
+---
+
+## 10. Future Work
 
 Next steps include:
 - Wrapping the simulator as a Gym-style RL environment
@@ -278,6 +539,6 @@ Geography is intentionally introduced later to keep the core control problem int
 
 ---
 
-## 8. Summary
+## 11. Summary
 
 This project demonstrates that fulfillment routing under real, bursty demand is a dynamic control problem with delayed consequences. Baseline heuristics expose clear failure modes and motivate reinforcement learning as a powerful tool for congestion-aware decision making in supply chain systems.
